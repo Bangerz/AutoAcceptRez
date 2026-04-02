@@ -1,0 +1,7 @@
+## Interface: 110007,120000,120001,120002
+## Title: Auto Accept Rez
+## Notes: Accepts player resurrections 5 seconds after the request when you are not in a boss encounter and the resurrecting player is out of combat (group roster only).
+## Version: 1.0.0
+## Author: AutoAcceptRez
+
+AutoAcceptRez.lua
