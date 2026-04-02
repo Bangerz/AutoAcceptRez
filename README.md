@@ -7,6 +7,8 @@ World of Warcraft **retail** addon (The War Within / Midnight, interface `110007
 
 If you stand up early (accept manually, release spirit, etc.), any pending timer is cancelled.
 
+While the timer is running, a line of text appears just below center screen (near the default resurrect dialog), counting down: **Auto Accept Rez: accepting in 5...** through **1...**. It hides when the timer ends or is cancelled.
+
 ## Install
 
 Copy the `AutoAcceptRez` folder into:

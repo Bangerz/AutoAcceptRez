@@ -15,8 +15,57 @@ local EncounterInProgress = C_InstanceEncounter and C_InstanceEncounter.IsEncoun
 
 local pendingTimer
 local storedInviter
+local countdownEnd
+
+-- On-screen countdown above the usual resurrect dialog position
+local feedback = CreateFrame("Frame", "AutoAcceptRezCountdown", UIParent, "BackdropTemplate")
+feedback:SetSize(520, 36)
+feedback:SetPoint("CENTER", UIParent, "CENTER", 0, -132)
+feedback:SetFrameStrata("FULLSCREEN_DIALOG")
+feedback:SetFrameLevel(5000)
+feedback:EnableMouse(false)
+feedback:SetBackdrop({
+	bgFile = "Interface\\Buttons\\WHITE8x8",
+	edgeFile = "Interface\\Buttons\\WHITE8x8",
+	tile = false,
+	tileSize = 0,
+	edgeSize = 1,
+	insets = { left = 0, right = 0, top = 0, bottom = 0 },
+})
+feedback:SetBackdropColor(0, 0, 0, 0.55)
+feedback:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.9)
+local feedbackText = feedback:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+feedbackText:SetPoint("CENTER")
+feedbackText:SetText("")
+feedback:Hide()
+
+local function HideCountdown()
+	feedback:Hide()
+	feedback:SetScript("OnUpdate", nil)
+	countdownEnd = nil
+	feedbackText:SetText("")
+end
+
+local function ShowCountdown()
+	countdownEnd = GetTime() + DELAY_SEC
+	feedback:Show()
+	feedback:SetScript("OnUpdate", function()
+		if not countdownEnd then
+			HideCountdown()
+			return
+		end
+		local left = countdownEnd - GetTime()
+		if left <= 0 then
+			feedbackText:SetText("")
+			return
+		end
+		local sec = math.ceil(left)
+		feedbackText:SetFormattedText("Auto Accept Rez: accepting in %d...", sec)
+	end)
+end
 
 local function CancelPending()
+	HideCountdown()
 	if pendingTimer then
 		pendingTimer:Cancel()
 		pendingTimer = nil
@@ -84,6 +133,7 @@ local function UnitForPlayerName(name)
 end
 
 local function TryAccept()
+	HideCountdown()
 	pendingTimer = nil
 	local inviter = storedInviter
 	storedInviter = nil
@@ -128,6 +178,7 @@ frame:SetScript("OnEvent", function(_, event, inviter)
 	if event == "RESURRECT_REQUEST" then
 		CancelPending()
 		storedInviter = inviter
+		ShowCountdown()
 		pendingTimer = C_Timer.NewTimer(DELAY_SEC, TryAccept)
 	elseif event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
 		CancelPending()
