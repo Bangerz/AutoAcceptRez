@@ -17,33 +17,54 @@ local pendingTimer
 local storedInviter
 local countdownEnd
 
--- TOOLTIP strata so death screen / rez StaticPopup does not paint over the countdown
-local feedback = CreateFrame("Frame", "AutoAcceptRezCountdown", UIParent)
-feedback:SetSize(640, 48)
-feedback:SetPoint("CENTER", UIParent, "CENTER", 0, -100)
-feedback:SetFrameStrata("TOOLTIP")
-feedback:SetFrameLevel(20000)
-if feedback.SetFixedFrameStrata then
-	feedback:SetFixedFrameStrata(true)
-end
-feedback:EnableMouse(false)
-local feedbackText = feedback:CreateFontString(nil, "OVERLAY")
-feedbackText:SetAllPoints()
-feedbackText:SetJustifyH("CENTER")
-feedbackText:SetJustifyV("MIDDLE")
-local base = _G.GameFontNormalHuge or _G.Game18Font or _G.GameFontNormalLarge or _G.GameFontNormal
-local fontFile, fontHeight = "Fonts\\FRIZQT__.TTF", 22
-if base and base.GetFont then
-	local f, h = base:GetFont()
-	if f then
-		fontFile, fontHeight = f, h
+-- Same bar pattern as AutoAcceptSummon; anchor under resurrect StaticPopup when visible
+local RESURRECT_POPUP_NAMES = { "RESURRECT", "RESURRECT_NO_TIMER", "RESURRECT_NO_SICKNESS" }
+
+local function getResurrectPopup()
+	for _, which in ipairs(RESURRECT_POPUP_NAMES) do
+		if StaticPopup_FindVisible then
+			local p = StaticPopup_FindVisible(which)
+			if p then
+				return p
+			end
+		end
+		local visName = StaticPopup_Visible and StaticPopup_Visible(which)
+		if visName and _G[visName] then
+			return _G[visName]
+		end
 	end
+	return nil
 end
-feedbackText:SetFont(fontFile, (fontHeight or 18) + 8, "OUTLINE")
-feedbackText:SetTextColor(0.25, 1, 0.35, 1)
-feedbackText:SetShadowOffset(0, 0)
+
+local feedback = CreateFrame("Frame", "AutoAcceptRezCountdown", UIParent, "BackdropTemplate")
+feedback:SetSize(520, 36)
+feedback:SetFrameStrata("FULLSCREEN_DIALOG")
+feedback:SetFrameLevel(5000)
+feedback:EnableMouse(false)
+feedback:SetBackdrop({
+	bgFile = "Interface\\Buttons\\WHITE8x8",
+	edgeFile = "Interface\\Buttons\\WHITE8x8",
+	tile = false,
+	tileSize = 0,
+	edgeSize = 1,
+	insets = { left = 0, right = 0, top = 0, bottom = 0 },
+})
+feedback:SetBackdropColor(0, 0, 0, 0.55)
+feedback:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.9)
+local feedbackText = feedback:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+feedbackText:SetPoint("CENTER")
 feedbackText:SetText("")
 feedback:Hide()
+
+local function updateFeedbackAnchor()
+	feedback:ClearAllPoints()
+	local popup = getResurrectPopup()
+	if popup then
+		feedback:SetPoint("TOP", popup, "BOTTOM", 0, -8)
+	else
+		feedback:SetPoint("CENTER", UIParent, "CENTER", 0, -100)
+	end
+end
 
 local function HideCountdown()
 	feedback:Hide()
@@ -54,6 +75,7 @@ end
 
 local function ShowCountdown()
 	countdownEnd = GetTime() + DELAY_SEC
+	updateFeedbackAnchor()
 	feedback:Show()
 	feedback:SetScript("OnUpdate", function()
 		if not countdownEnd then
@@ -65,8 +87,10 @@ local function ShowCountdown()
 			feedbackText:SetText("")
 			return
 		end
+		updateFeedbackAnchor()
 		local sec = math.ceil(left)
 		feedbackText:SetFormattedText("Auto Accept Rez: accepting in %d...", sec)
+		feedbackText:SetTextColor(0.85, 0.85, 0.85)
 	end)
 end
 
