@@ -21,7 +21,7 @@ Enable **Auto Accept Rez** in the AddOns list and `/reload`.
 
 `UnitAffectingCombat` only works for units in your **party or raid**. If someone not in your group resurrects you, the addon cannot verify their combat state and will **not** auto-accept (you may still see the countdown).
 
-If the countdown never appears, enable **Display Lua Errors** in the Help section of Interface options (or `/console scriptErrors 1`) and `/reload` — a load-time error in another addon’s file can look like “this addon does nothing.”
+This build does not log debug lines to chat. If the addon seems inert, enable **Display Lua Errors** (Interface options → Help, or `/console scriptErrors 1`) and `/reload` to catch load-time Lua errors (from any addon).
 
 ## License
 
