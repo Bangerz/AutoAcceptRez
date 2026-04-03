@@ -27,11 +27,21 @@ if feedback.SetFixedFrameStrata then
 	feedback:SetFixedFrameStrata(true)
 end
 feedback:EnableMouse(false)
-local feedbackText = feedback:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-feedbackText:SetPoint("CENTER")
-feedbackText:SetTextColor(0.3, 1, 0.35)
-feedbackText:SetShadowOffset(2, -2)
-feedbackText:SetShadowColor(0, 0, 0, 1)
+local feedbackText = feedback:CreateFontString(nil, "OVERLAY")
+feedbackText:SetAllPoints()
+feedbackText:SetJustifyH("CENTER")
+feedbackText:SetJustifyV("MIDDLE")
+local base = _G.GameFontNormalHuge or _G.Game18Font or _G.GameFontNormalLarge or _G.GameFontNormal
+local fontFile, fontHeight = "Fonts\\FRIZQT__.TTF", 22
+if base and base.GetFont then
+	local f, h = base:GetFont()
+	if f then
+		fontFile, fontHeight = f, h
+	end
+end
+feedbackText:SetFont(fontFile, (fontHeight or 18) + 8, "OUTLINE")
+feedbackText:SetTextColor(0.25, 1, 0.35, 1)
+feedbackText:SetShadowOffset(0, 0)
 feedbackText:SetText("")
 feedback:Hide()
 
