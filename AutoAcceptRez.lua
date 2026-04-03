@@ -17,16 +17,20 @@ local pendingTimer
 local storedInviter
 local countdownEnd
 
--- Plain frame (no BackdropTemplate) so a backdrop error cannot block the whole addon
+-- TOOLTIP strata so death screen / rez StaticPopup does not paint over the countdown
 local feedback = CreateFrame("Frame", "AutoAcceptRezCountdown", UIParent)
-feedback:SetSize(520, 40)
-feedback:SetPoint("CENTER", UIParent, "CENTER", 0, -132)
-feedback:SetFrameStrata("FULLSCREEN_DIALOG")
-feedback:SetFrameLevel(5000)
+feedback:SetSize(640, 48)
+feedback:SetPoint("CENTER", UIParent, "CENTER", 0, -100)
+feedback:SetFrameStrata("TOOLTIP")
+feedback:SetFrameLevel(20000)
+if feedback.SetFixedFrameStrata then
+	feedback:SetFixedFrameStrata(true)
+end
 feedback:EnableMouse(false)
-local feedbackText = feedback:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+local feedbackText = feedback:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
 feedbackText:SetPoint("CENTER")
-feedbackText:SetShadowOffset(1, -1)
+feedbackText:SetTextColor(0.3, 1, 0.35)
+feedbackText:SetShadowOffset(2, -2)
 feedbackText:SetShadowColor(0, 0, 0, 1)
 feedbackText:SetText("")
 feedback:Hide()
@@ -65,13 +69,19 @@ local function CancelPending()
 	storedInviter = nil
 end
 
---- RESURRECT_REQUEST sometimes passes a unit token (e.g. party1); normalize to a name for comparison.
+--- RESURRECT_REQUEST may pass party1/raid3, or "Name-Realm" when UnitExists(name) is false.
 local function InviterKeyFromEvent(inviter)
 	if not inviter or inviter == "" then
 		return nil
 	end
 	if type(inviter) == "string" and UnitExists(inviter) and not UnitIsUnit(inviter, "player") then
 		return UnitName(inviter)
+	end
+	if type(inviter) == "string" then
+		local hy = string.find(inviter, "-", 1, true)
+		if hy and hy > 1 then
+			return string.sub(inviter, 1, hy - 1)
+		end
 	end
 	return inviter
 end
