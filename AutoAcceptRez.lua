@@ -1,12 +1,12 @@
 --[[
-  AutoAccept Rez — Retail / Midnight (12.x)
+  Auto Accept Rez — Retail / Midnight (12.x)
 
-  On RESURRECT_REQUEST, waits 5 seconds then calls AcceptResurrect() only if:
-  - C_InstanceEncounter / IsEncounterInProgress: no encounter in progress
-  - The offerer (from ResurrectGetOfferer) maps to a party/raid unit that is not in combat
+  Arms a 5s accept timer when a resurrection is pending (RESURRECT_REQUEST and/or
+  INCOMING_RESURRECT_CHANGED + UnitHasIncomingResurrection), then AcceptResurrect() only if:
+  - No boss encounter in progress
+  - ResurrectGetOfferer maps to a party/raid unit that is not in combat
 
-  Limitation: if the resurrecting player is not in your group, their combat state cannot be read;
-  the addon will not auto-accept in that case.
+  If the caster is not in your group, combat cannot be verified and the rez is skipped.
 ]]
 
 local DELAY_SEC = 5
@@ -17,25 +17,17 @@ local pendingTimer
 local storedInviter
 local countdownEnd
 
--- On-screen countdown above the usual resurrect dialog position
-local feedback = CreateFrame("Frame", "AutoAcceptRezCountdown", UIParent, "BackdropTemplate")
-feedback:SetSize(520, 36)
+-- Plain frame (no BackdropTemplate) so a backdrop error cannot block the whole addon
+local feedback = CreateFrame("Frame", "AutoAcceptRezCountdown", UIParent)
+feedback:SetSize(520, 40)
 feedback:SetPoint("CENTER", UIParent, "CENTER", 0, -132)
 feedback:SetFrameStrata("FULLSCREEN_DIALOG")
 feedback:SetFrameLevel(5000)
 feedback:EnableMouse(false)
-feedback:SetBackdrop({
-	bgFile = "Interface\\Buttons\\WHITE8x8",
-	edgeFile = "Interface\\Buttons\\WHITE8x8",
-	tile = false,
-	tileSize = 0,
-	edgeSize = 1,
-	insets = { left = 0, right = 0, top = 0, bottom = 0 },
-})
-feedback:SetBackdropColor(0, 0, 0, 0.55)
-feedback:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.9)
 local feedbackText = feedback:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 feedbackText:SetPoint("CENTER")
+feedbackText:SetShadowOffset(1, -1)
+feedbackText:SetShadowColor(0, 0, 0, 1)
 feedbackText:SetText("")
 feedback:Hide()
 
@@ -71,6 +63,17 @@ local function CancelPending()
 		pendingTimer = nil
 	end
 	storedInviter = nil
+end
+
+--- RESURRECT_REQUEST sometimes passes a unit token (e.g. party1); normalize to a name for comparison.
+local function InviterKeyFromEvent(inviter)
+	if not inviter or inviter == "" then
+		return nil
+	end
+	if type(inviter) == "string" and UnitExists(inviter) and not UnitIsUnit(inviter, "player") then
+		return UnitName(inviter)
+	end
+	return inviter
 end
 
 local function NormalizePlayerName(name)
@@ -170,16 +173,45 @@ local function TryAccept()
 	end
 end
 
+local function ArmTimer(inviterFromEvent)
+	CancelPending()
+	storedInviter = InviterKeyFromEvent(inviterFromEvent)
+	ShowCountdown()
+	pendingTimer = C_Timer.NewTimer(DELAY_SEC, TryAccept)
+end
+
+--- Second signal for a pending rez (some builds fire this without RESURRECT_REQUEST).
+local function ArmTimerFromIncomingIfNeeded()
+	if pendingTimer then
+		return
+	end
+	if not UnitHasIncomingResurrection or not UnitHasIncomingResurrection("player") then
+		return
+	end
+	CancelPending()
+	ShowCountdown()
+	pendingTimer = C_Timer.NewTimer(DELAY_SEC, TryAccept)
+end
+
 local frame = CreateFrame("Frame", "AutoAcceptRezFrame")
 frame:RegisterEvent("RESURRECT_REQUEST")
+frame:RegisterEvent("INCOMING_RESURRECT_CHANGED")
 frame:RegisterEvent("PLAYER_ALIVE")
 frame:RegisterEvent("PLAYER_UNGHOST")
-frame:SetScript("OnEvent", function(_, event, inviter)
+frame:SetScript("OnEvent", function(_, event, arg1)
 	if event == "RESURRECT_REQUEST" then
-		CancelPending()
-		storedInviter = inviter
-		ShowCountdown()
-		pendingTimer = C_Timer.NewTimer(DELAY_SEC, TryAccept)
+		ArmTimer(arg1)
+	elseif event == "INCOMING_RESURRECT_CHANGED" then
+		if type(arg1) ~= "string" or not UnitExists(arg1) or not UnitIsUnit(arg1, "player") then
+			return
+		end
+		C_Timer.After(0, function()
+			if UnitHasIncomingResurrection and UnitHasIncomingResurrection("player") then
+				ArmTimerFromIncomingIfNeeded()
+			else
+				CancelPending()
+			end
+		end)
 	elseif event == "PLAYER_ALIVE" or event == "PLAYER_UNGHOST" then
 		CancelPending()
 	end
