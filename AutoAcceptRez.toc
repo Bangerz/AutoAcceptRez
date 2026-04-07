@@ -2,6 +2,6 @@
 ## Title: Auto Accept Rez
 ## Notes: Accepts player resurrections 5 seconds after the request when you are not in a boss encounter and the resurrecting player is out of combat (group roster only).
 ## Author: Bangerz-DarkIron
-## Version: 1.1.5
+## Version: 1.1.6
 
 AutoAcceptRez.lua

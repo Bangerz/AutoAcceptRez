@@ -75,8 +75,8 @@ end
 
 local function ShowCountdown()
 	countdownEnd = GetTime() + DELAY_SEC
-	updateFeedbackAnchor()
-	feedback:Show()
+	feedback:Hide()
+	feedbackText:SetText("")
 	feedback:SetScript("OnUpdate", function()
 		if not countdownEnd then
 			HideCountdown()
@@ -84,13 +84,20 @@ local function ShowCountdown()
 		end
 		local left = countdownEnd - GetTime()
 		if left <= 0 then
+			feedback:Hide()
 			feedbackText:SetText("")
 			return
 		end
-		updateFeedbackAnchor()
-		local sec = math.ceil(left)
-		feedbackText:SetFormattedText("Auto Accept Rez: accepting in %d...", sec)
-		feedbackText:SetTextColor(0.85, 0.85, 0.85)
+		if ShouldAutoAcceptNow(storedInviter) then
+			updateFeedbackAnchor()
+			feedback:Show()
+			local sec = math.ceil(left)
+			feedbackText:SetFormattedText("Auto Accept Rez: accepting in %d...", sec)
+			feedbackText:SetTextColor(0.85, 0.85, 0.85)
+		else
+			feedback:Hide()
+			feedbackText:SetText("")
+		end
 	end)
 end
 
@@ -179,33 +186,38 @@ local function UnitForPlayerName(name)
 	return nil
 end
 
+--- Same gates as AcceptResurrect path in TryAccept (inviter from RESURRECT_REQUEST, or nil for incoming-only).
+local function ShouldAutoAcceptNow(inviter)
+	if not UnitIsDeadOrGhost("player") then
+		return false
+	end
+	if EncounterInProgress and EncounterInProgress() then
+		return false
+	end
+	local offerer = ResurrectGetOfferer and ResurrectGetOfferer() or nil
+	if not offerer or offerer == "" then
+		return false
+	end
+	if inviter and not NamesMatch(offerer, inviter) then
+		return false
+	end
+	local casterUnit = UnitForPlayerName(offerer)
+	if not casterUnit then
+		return false
+	end
+	if UnitAffectingCombat(casterUnit) then
+		return false
+	end
+	return true
+end
+
 local function TryAccept()
 	HideCountdown()
 	pendingTimer = nil
 	local inviter = storedInviter
 	storedInviter = nil
 
-	if not UnitIsDeadOrGhost("player") then
-		return
-	end
-
-	if EncounterInProgress and EncounterInProgress() then
-		return
-	end
-
-	local offerer = ResurrectGetOfferer and ResurrectGetOfferer() or nil
-	if not offerer or offerer == "" then
-		return
-	end
-	if inviter and not NamesMatch(offerer, inviter) then
-		return
-	end
-
-	local casterUnit = UnitForPlayerName(offerer)
-	if not casterUnit then
-		return
-	end
-	if UnitAffectingCombat(casterUnit) then
+	if not ShouldAutoAcceptNow(inviter) then
 		return
 	end
 
