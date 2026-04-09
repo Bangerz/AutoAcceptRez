@@ -56,6 +56,10 @@ feedbackText:SetPoint("CENTER")
 feedbackText:SetText("")
 feedback:Hide()
 
+-- OnUpdate does not run on hidden frames in current clients; drive the countdown from this always-shown frame.
+local frame = CreateFrame("Frame", "AutoAcceptRezFrame", UIParent)
+frame:EnableMouse(false)
+
 local function updateFeedbackAnchor()
 	feedback:ClearAllPoints()
 	local popup = getResurrectPopup()
@@ -68,7 +72,7 @@ end
 
 local function HideCountdown()
 	feedback:Hide()
-	feedback:SetScript("OnUpdate", nil)
+	frame:SetScript("OnUpdate", nil)
 	countdownEnd = nil
 	feedbackText:SetText("")
 end
@@ -77,7 +81,7 @@ local function ShowCountdown()
 	countdownEnd = GetTime() + DELAY_SEC
 	feedback:Hide()
 	feedbackText:SetText("")
-	feedback:SetScript("OnUpdate", function()
+	frame:SetScript("OnUpdate", function()
 		if not countdownEnd then
 			HideCountdown()
 			return
@@ -86,18 +90,23 @@ local function ShowCountdown()
 		if left <= 0 then
 			feedback:Hide()
 			feedbackText:SetText("")
+			frame:SetScript("OnUpdate", nil)
 			return
 		end
-		if ShouldAutoAcceptNow(storedInviter) then
-			updateFeedbackAnchor()
-			feedback:Show()
-			local sec = math.ceil(left)
-			feedbackText:SetFormattedText("Auto Accept Rez: accepting in %d...", sec)
-			feedbackText:SetTextColor(0.85, 0.85, 0.85)
-		else
+		if not UnitIsDeadOrGhost("player") then
+			HideCountdown()
+			return
+		end
+		if EncounterInProgress and EncounterInProgress() then
 			feedback:Hide()
 			feedbackText:SetText("")
+			return
 		end
+		updateFeedbackAnchor()
+		feedback:Show()
+		local sec = math.ceil(left)
+		feedbackText:SetFormattedText("Auto Accept Rez: accepting in %d...", sec)
+		feedbackText:SetTextColor(0.85, 0.85, 0.85)
 	end)
 end
 
@@ -249,7 +258,6 @@ local function ArmTimerFromIncomingIfNeeded()
 	pendingTimer = C_Timer.NewTimer(DELAY_SEC, TryAccept)
 end
 
-local frame = CreateFrame("Frame", "AutoAcceptRezFrame")
 frame:RegisterEvent("RESURRECT_REQUEST")
 frame:RegisterEvent("INCOMING_RESURRECT_CHANGED")
 frame:RegisterEvent("PLAYER_ALIVE")
